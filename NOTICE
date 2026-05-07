@@ -1,0 +1,32 @@
+mlx-swift-ml-sharp
+===================
+
+This project is a Swift / mlx-swift port of:
+
+    ml-sharp — Apple's reference implementation of SHARP, a feed-forward
+    3D Gaussian splat predictor from a single image.
+    https://github.com/apple/ml-sharp
+
+The original Python implementation and the SHARP model architecture are
+copyright (C) 2025 Apple Inc. and are licensed under the Apple Sample Code
+License (see LICENSE) and, for the model weights, the Apple Machine Learning
+Research Model License (see LICENSE_MODEL).
+
+The Swift port — including the mlx-swift module structure under
+`Sources/MLXSharp/`, the model-weight conversion script under `scripts/`,
+the example macOS application under `Examples/MLXSharpApp/`, and the test
+fixtures under `Tests/` — is copyright (C) 2026 Hiroaki Yamane and is
+distributed under the same Apple Sample Code License as the upstream
+Python project.
+
+The Swift port is functionally and numerically equivalent to the upstream
+Python implementation: every non-rotation field of the exported `.ply` matches
+Python's reference output within float-precision noise on the same input.
+Quaternion sign conventions differ between LAPACK (Swift) and torch.linalg.svd
+(Python) for the same covariance — this is mathematically equivalent and
+visually invariant, not a port-correctness gap.
+
+This Swift port is not affiliated with, endorsed by, or sponsored by Apple
+Inc. The names "Apple", "SHARP", and "ml-sharp" are used solely to identify
+the upstream project from which this code is derived; per the Apple Sample
+Code License, no endorsement is implied or claimed.
