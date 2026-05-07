@@ -156,9 +156,11 @@ public struct MultiLayerInitializer: GaussianInitializing {
     ) -> (x: MLXArray, y: MLXArray) {
         let xx = (arange(Double(stride) * 0.5, Double(imageWidth), step: Double(stride), dtype: .float32) * (2.0 / Float(imageWidth))) - 1.0
         let yy = (arange(Double(stride) * 0.5, Double(imageHeight), step: Double(stride), dtype: .float32) * (2.0 / Float(imageHeight))) - 1.0
+        // meshGrid with indexing=.xy returns shape [len(yy), len(xx)] = [H, W]
+        // with xx varying along the W axis — matches PyTorch convention. No transpose needed.
         let grid = meshGrid([xx, yy], indexing: .xy)
-        let xBase = grid[0].transposed(1, 0).expandedDimensions(axis: 0).expandedDimensions(axis: 0).expandedDimensions(axis: 0)
-        let yBase = grid[1].transposed(1, 0).expandedDimensions(axis: 0).expandedDimensions(axis: 0).expandedDimensions(axis: 0)
+        let xBase = grid[0].expandedDimensions(axis: 0).expandedDimensions(axis: 0).expandedDimensions(axis: 0)
+        let yBase = grid[1].expandedDimensions(axis: 0).expandedDimensions(axis: 0).expandedDimensions(axis: 0)
         let shape = [batchSize, 1, numLayers, imageHeight / stride, imageWidth / stride]
         return (broadcast(xBase, to: shape), broadcast(yBase, to: shape))
     }

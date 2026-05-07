@@ -11,7 +11,7 @@ final class UNetConvIn: Module {
 
     init(dimIn: Int, dimOut: Int, numGroups: Int) {
         conv = Conv2d(inputChannels: dimIn, outputChannels: dimOut, kernelSize: 3, padding: 1)
-        norm = GroupNorm(groupCount: numGroups, dimensions: dimOut)
+        norm = GroupNorm(groupCount: numGroups, dimensions: dimOut, pytorchCompatible: true)
         super.init()
     }
 
@@ -106,9 +106,9 @@ final class UNetConvOut: Module {
     @ModuleInfo var norm2: GroupNorm
 
     init(dimIn: Int, dimOut: Int, numGroups: Int) {
-        norm1 = GroupNorm(groupCount: numGroups, dimensions: dimIn)
+        norm1 = GroupNorm(groupCount: numGroups, dimensions: dimIn, pytorchCompatible: true)
         conv = Conv2d(inputChannels: dimIn, outputChannels: dimOut, kernelSize: 1)
-        norm2 = GroupNorm(groupCount: numGroups, dimensions: dimOut)
+        norm2 = GroupNorm(groupCount: numGroups, dimensions: dimOut, pytorchCompatible: true)
         super.init()
     }
 

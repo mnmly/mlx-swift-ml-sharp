@@ -35,7 +35,7 @@ final class FFBResidualSequence: Module {
     }
 
     func callAsFunction(_ x: MLXArray) -> MLXArray {
-        relu(conv2(relu(conv1(x))))
+        conv2(relu(conv1(relu(x))))
     }
 }
 
@@ -63,9 +63,9 @@ final class GNResidualSequence: Module {
     @ModuleInfo var conv2: Conv2d
 
     init(dimIn: Int, dimHidden: Int, dimOut: Int, numGroups: Int = 8) {
-        norm1 = GroupNorm(groupCount: numGroups, dimensions: dimIn)
+        norm1 = GroupNorm(groupCount: numGroups, dimensions: dimIn, pytorchCompatible: true)
         conv1 = Conv2d(inputChannels: dimIn, outputChannels: dimHidden, kernelSize: 3, padding: 1)
-        norm2 = GroupNorm(groupCount: numGroups, dimensions: dimHidden)
+        norm2 = GroupNorm(groupCount: numGroups, dimensions: dimHidden, pytorchCompatible: true)
         conv2 = Conv2d(inputChannels: dimHidden, outputChannels: dimOut, kernelSize: 3, padding: 1)
         super.init()
     }
