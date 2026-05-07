@@ -225,42 +225,41 @@ enum PLYExporter {
       + R[2] * (R[3]*R[7] - R[4]*R[6])
     }
 
-    // MARK: - 3×3 SVD via LAPACK sgesvd_
-    // A_rm: row-major input. Returns U (row-major proper rotation) and s (singular values ≥ 0).
+    // MARK: - 3×3 SVD via LAPACK dgesvd_ (fp64)
+    // Mirrors Python's `covariance_matrices.to(torch.float64)` before SVD, so the
+    // smallest singular value doesn't pick up fp32 rounding noise.
+    // A_rm: row-major fp32 input. Returns U (row-major proper rotation) and s (singular values ≥ 0).
     private static func svd3x3(_ A_rm: [Float]) -> (U: [Float], s: [Float]) {
-        // Row-major → column-major for LAPACK
-        var a: [Float] = [
-            A_rm[0], A_rm[3], A_rm[6],
-            A_rm[1], A_rm[4], A_rm[7],
-            A_rm[2], A_rm[5], A_rm[8]
+        // Row-major fp32 → column-major fp64 for LAPACK.
+        var a: [Double] = [
+            Double(A_rm[0]), Double(A_rm[3]), Double(A_rm[6]),
+            Double(A_rm[1]), Double(A_rm[4]), Double(A_rm[7]),
+            Double(A_rm[2]), Double(A_rm[5]), Double(A_rm[8])
         ]
         var jobu:  Int8 = Int8(UInt8(ascii: "A"))
         var jobvt: Int8 = Int8(UInt8(ascii: "N"))
         var m = Int32(3), n = Int32(3)
         var lda = Int32(3)
-        var s = [Float](repeating: 0, count: 3)
-        var u = [Float](repeating: 0, count: 9)   // column-major output
+        var sD = [Double](repeating: 0, count: 3)
+        var uD = [Double](repeating: 0, count: 9)
         var ldu = Int32(3)
-        var vt = [Float](repeating: 0, count: 1)  // not referenced with jobvt='N'
+        var vt = [Double](repeating: 0, count: 1)
         var ldvt = Int32(1)
         var lwork = Int32(32)
-        var work = [Float](repeating: 0, count: 32)
+        var work = [Double](repeating: 0, count: 32)
         var info = Int32(0)
 
-        sgesvd_(&jobu, &jobvt, &m, &n, &a, &lda, &s, &u, &ldu, &vt, &ldvt, &work, &lwork, &info)
+        dgesvd_(&jobu, &jobvt, &m, &n, &a, &lda, &sD, &uD, &ldu, &vt, &ldvt, &work, &lwork, &info)
 
-        // Column-major U → row-major
+        // Column-major fp64 U → row-major fp32.
         var U: [Float] = [
-            u[0], u[3], u[6],
-            u[1], u[4], u[7],
-            u[2], u[5], u[8]
+            Float(uD[0]), Float(uD[3]), Float(uD[6]),
+            Float(uD[1]), Float(uD[4]), Float(uD[7]),
+            Float(uD[2]), Float(uD[5]), Float(uD[8])
         ]
-
-        // Ensure U is a proper rotation (det = +1)
         if det3x3(U) < 0 {
-            U[2] = -U[2]; U[5] = -U[5]; U[8] = -U[8]  // flip last column
+            U[2] = -U[2]; U[5] = -U[5]; U[8] = -U[8]
         }
-
-        return (U, s)
+        return (U, [Float(sD[0]), Float(sD[1]), Float(sD[2])])
     }
 }

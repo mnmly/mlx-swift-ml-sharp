@@ -49,6 +49,8 @@ final class AppViewModel {
     var canExport: Bool { plyData != nil && !isWorking }
 
     private var cgImage: CGImage?
+    /// EXIF-derived focal length in pixels, or nil if EXIF was missing.
+    private var exifFocalPixels: Float?
     private let runner = ModelRunner()
 
     func setWeightsURL(_ url: URL) {
@@ -72,6 +74,13 @@ final class AppViewModel {
             return
         }
         cgImage = img
+        // Resolve focal length once from EXIF (with the same fallback chain as
+        // the upstream Python pipeline). Falls back to 30mm if EXIF is absent.
+        exifFocalPixels = SharpCameraIntrinsics.focalLengthPixels(
+            from: src,
+            imageWidth: img.width,
+            imageHeight: img.height
+        )
         previewImage = NSImage(cgImage: img, size: .zero)
         plyData = nil
         gaussianCount = nil
@@ -81,7 +90,11 @@ final class AppViewModel {
     func process() {
         guard let wURL = weightsURL, let cg = cgImage else { return }
         isWorking = true
-        let focal = Float(cg.width) * 0.58
+        let focal = exifFocalPixels ?? SharpCameraIntrinsics.focalLengthPixels(
+            focalMM: 30,
+            imageWidth: cg.width,
+            imageHeight: cg.height
+        )
 
         // Task inherits @MainActor isolation; await hops into ModelRunner's executor.
         Task {
