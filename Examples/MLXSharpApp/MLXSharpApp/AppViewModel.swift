@@ -1,4 +1,3 @@
-import AppKit
 import CoreGraphics
 import ImageIO
 import MLX
@@ -39,7 +38,7 @@ private actor ModelRunner {
 final class AppViewModel {
     var weightsURL: URL?
     var imageURL: URL?
-    var previewImage: NSImage?
+    var previewImage: CGImage?
     var plyData: Data?
     var isWorking = false
     var status = "Select a .safetensors weights file and an image."
@@ -66,9 +65,14 @@ final class AppViewModel {
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
 
-        guard
-            let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-            let img = CGImageSourceCreateImageAtIndex(src, 0, nil)
+        // Read bytes eagerly while we hold the security scope; decoding from
+        // in-memory Data ensures the CGImage doesn't lazy-reopen the file
+        // later (which would fail once the picker's scope is released).
+        guard let data = try? Data(contentsOf: url),
+              let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let img = CGImageSourceCreateImageAtIndex(
+                src, 0,
+                [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
         else {
             status = "Could not read image."
             return
@@ -81,7 +85,7 @@ final class AppViewModel {
             imageWidth: img.width,
             imageHeight: img.height
         )
-        previewImage = NSImage(cgImage: img, size: .zero)
+        previewImage = img
         plyData = nil
         gaussianCount = nil
         updateStatus()

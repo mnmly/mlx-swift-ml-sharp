@@ -1,9 +1,13 @@
-import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
     @State private var vm = AppViewModel()
+    @State private var showWeightsImporter = false
+    @State private var showImageImporter = false
+    @State private var showPLYExporter = false
+
+    private static let safetensorsType: UTType = UTType(filenameExtension: "safetensors") ?? .data
 
     var body: some View {
         VStack(spacing: 0) {
@@ -13,7 +17,7 @@ struct ContentView: View {
                     icon: "doc.badge.gearshape",
                     label: vm.weightsURL?.lastPathComponent ?? "No weights file selected"
                 ) {
-                    pickWeights()
+                    showWeightsImporter = true
                 } buttonLabel: {
                     Text("Select Weights…")
                 }
@@ -22,7 +26,7 @@ struct ContentView: View {
                     icon: "photo",
                     label: vm.imageURL?.lastPathComponent ?? "No image selected"
                 ) {
-                    pickImage()
+                    showImageImporter = true
                 } buttonLabel: {
                     Text("Select Image…")
                 }
@@ -34,7 +38,7 @@ struct ContentView: View {
             // ── Image preview ─────────────────────────────────────────────
             Group {
                 if let img = vm.previewImage {
-                    Image(nsImage: img)
+                    Image(decorative: img, scale: 1)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                 } else {
@@ -72,7 +76,7 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!vm.canProcess)
 
-                Button("Export .ply…") { savePLY() }
+                Button("Export .ply…") { showPLYExporter = true }
                     .disabled(!vm.canExport)
 
                 if let n = vm.gaussianCount {
@@ -85,43 +89,48 @@ struct ContentView: View {
             }
             .padding()
         }
+        #if os(macOS)
         .frame(minWidth: 520, minHeight: 520)
-    }
-
-    // MARK: - Panel helpers
-
-    private func pickWeights() {
-        let panel = NSOpenPanel()
-        panel.title = "Select weights file"
-        panel.allowedContentTypes = [UTType(filenameExtension: "safetensors") ?? .data]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        vm.setWeightsURL(url)
-    }
-
-    private func pickImage() {
-        let panel = NSOpenPanel()
-        panel.title = "Select image"
-        panel.allowedContentTypes = [.image]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        vm.setImageURL(url)
-    }
-
-    private func savePLY() {
-        guard let data = vm.plyData else { return }
-        let panel = NSSavePanel()
-        panel.title = "Export Gaussians"
-        panel.allowedContentTypes = [UTType(filenameExtension: "ply") ?? .data]
-        panel.nameFieldStringValue = "gaussians.ply"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try data.write(to: url)
-            vm.status = "Saved to \(url.lastPathComponent)."
-        } catch {
-            vm.status = "Export failed: \(error.localizedDescription)"
+        #endif
+        .background {
+            // Isolated host so this fileImporter doesn't collide with the
+            // image one — SwiftUI silently drops one when two .fileImporter
+                // modifiers sit on the same view chain.
+            Color.clear
+                .fileImporter(
+                    isPresented: $showWeightsImporter,
+                    allowedContentTypes: [Self.safetensorsType, .data],
+                    allowsMultipleSelection: false
+                ) { result in
+                    if case let .success(urls) = result, let url = urls.first {
+                        vm.setWeightsURL(url)
+                    }
+                }
+        }
+        .background {
+            Color.clear
+                .fileImporter(
+                    isPresented: $showImageImporter,
+                    allowedContentTypes: [.image],
+                    allowsMultipleSelection: false
+                ) { result in
+                    if case let .success(urls) = result, let url = urls.first {
+                        vm.setImageURL(url)
+                    }
+                }
+        }
+        .fileExporter(
+            isPresented: $showPLYExporter,
+            document: vm.plyData.map { PLYDocument(data: $0) },
+            contentType: .ply,
+            defaultFilename: "gaussians"
+        ) { result in
+            switch result {
+            case .success(let url):
+                vm.status = "Saved to \(url.lastPathComponent)."
+            case .failure(let error):
+                vm.status = "Export failed: \(error.localizedDescription)"
+            }
         }
     }
 }
